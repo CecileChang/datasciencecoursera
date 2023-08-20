@@ -1,0 +1,56 @@
+---
+title: "NYPD Shooting Incident Report"
+output: word_document
+---
+
+Step 1: Import Data
+The following block could make sure anyone who runs the code can reproduce the same analysis. This report uses NYPD Shooting Incident Data (Historic) from https://catalog.data.gov/dataset.
+
+```{r}
+url = "https://data.cityofnewyork.us/api/views/833y-fsy8/rows.csv?accessType=DOWNLOAD"
+rawdata = read.csv(url)
+#install.packages(tidyverse)
+library(tidyverse)
+```
+
+Step 2: Tidy and Transform Data
+To start with, I got rid of the columns that I do not think I will need for further analysis. I believe that the incident keys and exact locations like coordinates, latitude or longitude will not be needed in this report. Thus, I removed “INCIDENT_KEY”, “X_COORD_CD”, “Y_COORD_CD”, “Latitude”, “Longitude” and “Lon_Lat” from the raw dataset. Then, I transformed character cells to date for column “OCCUR_DATE” and I transformed character cells to time for column “OCCUR_TIME” as well. For column “STATISTICAL_MURDER_FLAG”, I apply integers 0 and 1 to character cells of “false” and “true’. For column”VIC_SEX”, I apply integers 0 and 1 to character cells of “female” and “male” respectively. In the end, I decided to let the remaining columns as factors in order to do further analysis.
+```{r}
+summary(rawdata)
+data = rawdata[,2:16]
+
+library(lubridate)
+data$OCCUR_DATE = mdy(data$OCCUR_DATE)
+library(chron)
+data$OCCUR_TIME = hms(data$OCCUR_TIME)
+
+data$STATISTICAL_MURDER_FLAG[data$STATISTICAL_MURDER_FLAG == "true"] <- 1
+data$STATISTICAL_MURDER_FLAG[data$STATISTICAL_MURDER_FLAG == "false"] <- 0
+data$VIC_SEX[data$VIC_SEX == "M"] <- 1
+data$VIC_SEX[data$VIC_SEX == "W"] <- 0
+
+summary(data)
+
+```
+
+Step 3: Visualizations and Analysis
+In this step, I generated a histogram plot of the incidents happened in New York City to investigate if the shooting incidents are related to Boroughs. According to the first chart below, we can conclude that Brooklyn has the most counts of incidents and Bronx has the second. Then, to detect the difference of the shooting incidents among the age groups, I generated a second histogram. This second histogram illustrated that there are two age groups in New York City that are more likely to get shot. The first one is individuals aged 25-44 and the second one is individuals aged 18-24.
+```{r}
+library(ggplot2)
+
+#visualization 1
+ggplot(data,aes(x=BORO))+geom_bar()+labs(title="Boroughs of New York City", x="Boroughs of New York City", y="Count of Incident")
+
+# visualization 2
+ggplot(data,aes(x=VIC_AGE_GROUP))+geom_bar()+labs(title="Age Groups of the Victims", x="Age Groups of the Victims", y="Count of Incident")
+```
+
+According to the preliminary analysis of the data, I assume there exists a relationship between the statistical murder flag and the other factors like occur time, victim sex, or victim age. As the analysis below indicates, I concluded that victims aged 65+ are more likely to be involved in the statistical murder shooting incidents.
+```{r}
+# model
+lm(data$STATISTICAL_MURDER_FLAG~data$VIC_AGE_GROUP+data$VIC_SEX+data$VIC_AGE_GROUP+data$OCCUR_TIME)
+```
+
+Step 4: Bias Identification
+This report only investigated limited relationships in the data frame that interest or are relatively obvious to me. But there may be other important topics that I omitted. This could cause the original bias. Besides, there is some data missing in the given data set, this could be caused by various reasons and could also be another source of bias. Furthermore, there could be potential extreme points in the data set affecting the results as well. And the major bias concern towards this report might be the analysis of the age groups of the victims. I think how the data divided the age group could lead to bias as well.
+
